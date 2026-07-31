@@ -6,7 +6,7 @@ from groq import Groq
 # Page Config aapke design layout ke mutabaq wide view me
 st.set_page_config(page_title="Groq AI Dashboard", layout="wide")
 
-# Custom CSS for Professional Layout (Aapke Design ke mutabaq)
+# Custom CSS for Professional Layout
 st.markdown("""
     <style>
     .header-box { background-color: #1E1E1E; padding: 15px; border-radius: 8px; border: 1px solid #333; text-align: center; font-weight: bold; }
@@ -66,20 +66,36 @@ if htf_file or ltf_file:
                         
                         client = Groq(api_key=api_key)
                         
-                        # 🚨 FIXED: Model string updated to stable non-preview name
-                        response = client.chat.completions.create(
-                            model="llama-3.2-11b-vision",
-                            messages=[
-                                {
-                                    "role": "user", 
-                                    "content": [
-                                        {"type": "text", "text": prompt}, 
-                                        {"type": "image_url", "image_url": {"url": data_url}}
-                                    ]
-                                }
-                            ],
-                            response_format={"type": "json_object"}
-                        )
+                        # 🚨 FIXED & SECURED: Dynamic backup handling to prevent 404 model errors
+                        try:
+                            response = client.chat.completions.create(
+                                model="llama-3.2-90b-vision-preview",
+                                messages=[
+                                    {
+                                        "role": "user", 
+                                        "content": [
+                                            {"type": "text", "text": prompt}, 
+                                            {"type": "image_url", "image_url": {"url": data_url}}
+                                        ]
+                                    }
+                                ],
+                                response_format={"type": "json_object"}
+                            )
+                        except Exception as model_err:
+                            # Auto fallback to standard text/vision model string if primary fails
+                            response = client.chat.completions.create(
+                                model="llama-3.2-11b-vision-preview",
+                                messages=[
+                                    {
+                                        "role": "user", 
+                                        "content": [
+                                            {"type": "text", "text": prompt}, 
+                                            {"type": "image_url", "image_url": {"url": data_url}}
+                                        ]
+                                    }
+                                ],
+                                response_format={"type": "json_object"}
+                            )
                         
                         clean_text = response.choices.message.content.strip()
                         
@@ -92,9 +108,9 @@ if htf_file or ltf_file:
                         st.rerun()
                             
                     except Exception as e: 
-                        st.error(f"Error aaya: {str(e)}")
+                        st.error(f"Error aaya: {str(e)}. Ek baar API status check karein.")
 
-# Display UI Structure (Symmetric Dashboard)
+# Display UI Structure
 if st.session_state.analyzed:
     data = st.session_state.ai_data
     if st.button("🔄 Naya Chart Analyze Karein"):
