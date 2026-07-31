@@ -50,17 +50,15 @@ if htf_file or ltf_file:
                         base64_image = base64.b64encode(buffered.getvalue()).decode('utf-8')
                         
                         prompt = """
-                        Aap ek top-tier institutional trader hain. Is chart screenshot ka code-level structure me data chahiye.
-                        Mera response strict aur valid JSON format me hona chahiye bina kisi markdown block (```json) ke. 
-                        Response is pattern me hona chahiye:
+                        You are a top-tier institutional market analyst. Analyze this chart screenshot and respond STRICTLY in a valid JSON format. Do NOT wrap your response in markdown code blocks like ```json ... ```. Your output must strictly match this exact JSON schema:
                         {
-                            "symbol": "Asset Name / Symbol",
-                            "full_analysis": "Short 2-line global technical structure statement.",
-                            "signal": "BUY ya SELL ya NEUTRAL",
-                            "confirmation": "85%",
-                            "retail_vs_pro": "Retailer kya sochta hai aur kyun wo galat hai, aur pro logic kya hai.",
-                            "liquidity_psychology": "Liquidity sweeps, Support/Resistance zones aur critical psychology points.",
-                            "other_news": "Expected macro events, target timeframes aur additional information."
+                            "symbol": "Asset Name / Trading Pair",
+                            "full_analysis": "Provide a clean 2-line global macro/technical market structure statement.",
+                            "signal": "BUY or SELL or NEUTRAL",
+                            "confirmation": "Confidence level percentage like 85%",
+                            "retail_vs_pro": "Explain what a typical retail trader thinks here, why they are wrong, and what the professional institutional logic is.",
+                            "liquidity_psychology": "Identify liquidity sweeps, invalidation levels, crucial support/resistance targets, and psychological zones.",
+                            "other_news": "Detail any upcoming economic indicators, relevant macro news, timeframes, or additional information."
                         }
                         """
                         
@@ -80,11 +78,22 @@ if htf_file or ltf_file:
                         }
                         
                         res = requests.post("https://groq.com", headers=headers, json=payload)
-                        clean_text = res.json()['choices']['message']['content'].strip().replace("```json", "").replace("```", "")
                         
-                        st.session_state.ai_data = json.loads(clean_text.strip())
-                        st.session_state.analyzed = True
-                        st.rerun()
+                        # 🚨 ERROR FIX: Status check aur fallback string handling
+                        if res.status_code == 200:
+                            clean_text = res.json()['choices']['message']['content'].strip()
+                            
+                            # Safely stripping extra backticks if Groq adds them mistakenly
+                            if clean_text.startswith("```json"): clean_text = clean_text[7:]
+                            if clean_text.startswith("```"): clean_text = clean_text[3:]
+                            if clean_text.endswith("```"): clean_text = clean_text[:-3]
+                            
+                            st.session_state.ai_data = json.loads(clean_text.strip())
+                            st.session_state.analyzed = True
+                            st.rerun()
+                        else:
+                            st.error(f"API Error (Status {res.status_code}): {res.text}")
+                            
                     except Exception as e: 
                         st.error(f"Error aaya: {str(e)}")
 
