@@ -3,8 +3,10 @@ from google import genai
 from PIL import Image
 import json
 
+# Page config
 st.set_page_config(page_title="Gemini AI Dashboard", layout="wide")
 
+# Custom CSS for Professional Layout
 st.markdown("""
     <style>
     .header-box { background-color: #1E1E1E; padding: 15px; border-radius: 8px; border: 1px solid #333; text-align: center; font-weight: bold; }
@@ -17,13 +19,16 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🔵 Gemini Pro AI Chart Dashboard")
+
+# Sidebar
 api_key = st.sidebar.text_input("Enter Google Gemini API Key:", type="password")
 
 if 'analyzed' not in st.session_state: st.session_state.analyzed = False
 if 'ai_data' not in st.session_state: st.session_state.ai_data = {}
 
+# File uploaders
 col_u1, col_u2 = st.columns(2)
-with col_u1: htf_file = st.file_uploader("Upload Image 1", type=["jpg", "png", "jpeg"])
+with col_u1: htf_file = st.file_uploader("Upload Image 1 (Main Chart)", type=["jpg", "png", "jpeg"])
 with col_u2: ltf_file = st.file_uploader("Upload Image 2 (Optional)", type=["jpg", "png", "jpeg"])
 
 if htf_file or ltf_file:
@@ -39,15 +44,30 @@ if htf_file or ltf_file:
                         if htf_file: contents_list.append(Image.open(htf_file))
                         if ltf_file: contents_list.append(Image.open(ltf_file))
                         
-                        prompt = 'Aap ek top-tier institutional trader hain. strict aur valid JSON format me bina kisi markdown block ke response dein: {"symbol": "Asset Name", "full_analysis": "Short statement", "signal": "BUY/SELL/NEUTRAL", "confirmation": "85%", "retail_vs_pro": "details", "liquidity_psychology": "details", "other_news": "details"}'
+                        prompt = """
+                        Aap ek top-tier institutional trader hain. Is chart screenshot ka code-level structure me data chahiye.
+                        Mera response strict aur valid JSON format me hona chahiye bina kisi markdown block (```json) ke. 
+                        Response is pattern me hona chahiye:
+                        {
+                            "symbol": "Asset Name / Symbol",
+                            "full_analysis": "Short 2-line global technical structure statement.",
+                            "signal": "BUY ya SELL ya NEUTRAL",
+                            "confirmation": "85%",
+                            "retail_vs_pro": "Retailer kya sochta hai aur kyun wo galat hai, aur pro logic kya hai.",
+                            "liquidity_psychology": "Liquidity sweeps, Support/Resistance zones aur critical psychology points.",
+                            "other_news": "Expected macro events, target timeframes aur additional information."
+                        }
+                        """
                         contents_list.append(prompt)
                         
+                        # Calling Gemini 2.0 Flash
                         response = client.models.generate_content(model='gemini-2.0-flash', contents=contents_list)
                         clean_text = response.text.strip().replace("```json", "").replace("```", "")
                         st.session_state.ai_data = json.loads(clean_text.strip())
                         st.session_state.analyzed = True
                         st.rerun()
-                    except Exception as e: st.error(f"Error: {str(e)}")
+                    except Exception as e: 
+                        st.error(f"Error aaya: {str(e)}")
 
 # Display UI Structure
 if st.session_state.analyzed:
