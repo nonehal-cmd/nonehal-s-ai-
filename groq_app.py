@@ -6,7 +6,7 @@ from groq import Groq
 # Page Config aapke design layout ke mutabaq wide view me
 st.set_page_config(page_title="Groq AI Dashboard", layout="wide")
 
-# Custom CSS for Professional Layout (Aapke Design ke mutabaq)
+# Custom CSS for Professional Layout
 st.markdown("""
     <style>
     .header-box { background-color: #1E1E1E; padding: 15px; border-radius: 8px; border: 1px solid #333; text-align: center; font-weight: bold; }
@@ -39,9 +39,9 @@ if htf_file or ltf_file:
             if not api_key:
                 st.error("Kripya Sidebar me Groq API Key dalein!")
             else:
-                with st.spinner("Groq Llama AI data process kar raha hai..."):
+                with st.spinner("Groq Llama AI saare live vision models test kar raha hai..."):
                     try:
-                        # Image select aur RGBA to RGB conversion to prevent crash
+                        # Image conversion
                         main_img = Image.open(htf_file if htf_file else ltf_file)
                         if main_img.mode in ("RGBA", "P"): 
                             main_img = main_img.convert("RGB")
@@ -66,21 +66,42 @@ if htf_file or ltf_file:
                         
                         client = Groq(api_key=api_key)
                         
-                        # 🚨 FIXED: Sirf strictly supported 90B model use hoga bina kisi deprecated backup ke
-                        response = client.chat.completions.create(
-                            model="llama-3.2-90b-vision-preview",
-                            messages=[
-                                {
-                                    "role": "user", 
-                                    "content": [
-                                        {"type": "text", "text": prompt}, 
-                                        {"type": "image_url", "image_url": {"url": data_url}}
-                                    ]
-                                }
-                            ],
-                            response_format={"type": "json_object"}
-                        )
+                        # 🚨 MULTI-MODEL FALLBACK TRIPLE PROTECTION SYSTEM
+                        models_to_test = [
+                            "llama-3.2-90b-vision-preview",
+                            "llama-3.2-11b-vision-preview",
+                            "llama-3.2-11b-vision",
+                            "llava-v1.5-7b-preview"
+                        ]
                         
+                        response = None
+                        last_error = ""
+                        
+                        for current_model in models_to_test:
+                            try:
+                                response = client.chat.completions.create(
+                                    model=current_model,
+                                    messages=[
+                                        {
+                                            "role": "user", 
+                                            "content": [
+                                                {"type": "text", "text": prompt}, 
+                                                {"type": "image_url", "image_url": {"url": data_url}}
+                                            ]
+                                        }
+                                    ],
+                                    response_format={"type": "json_object"}
+                                )
+                                # Agar response bina error ke mil gaya toh loop tod do
+                                if response:
+                                    break
+                            except Exception as e:
+                                last_error = str(e)
+                                continue # Agle model par jao
+                        
+                        if response is None:
+                            raise Exception(f"Groq ke saare vision models offline hain ya decommissioned hain. Last Server Error: {last_error}")
+                            
                         clean_text = response.choices.message.content.strip()
                         
                         if clean_text.startswith("```json"): clean_text = clean_text[7:]
@@ -92,7 +113,7 @@ if htf_file or ltf_file:
                         st.rerun()
                             
                     except Exception as e: 
-                        st.error(f"Error aaya: {str(e)}. Ek baar API key check karein.")
+                        st.error(f"Dikkat aayi: {str(e)}")
 
 # Display UI Structure (Symmetric Dashboard)
 if st.session_state.analyzed:
