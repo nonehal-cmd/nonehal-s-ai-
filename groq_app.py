@@ -1,6 +1,7 @@
 import streamlit as st
 from PIL import Image
-import json, base64, requests, io
+import json, base64, io
+from groq import Groq  # Official SDK ka use jo error khatam karega
 
 # Page Config aapke design layout ke mutabaq wide view me
 st.set_page_config(page_title="Groq AI Dashboard", layout="wide")
@@ -17,12 +18,12 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🟢 Groq Llama-3 AI Chart Dashboard")
+st.title("🟢 Groq Llama AI Chart Dashboard")
 
 # Sidebar for Key Input
 api_key = st.sidebar.text_input("Enter Groq API Key:", type="password")
 st.sidebar.markdown("---")
-st.sidebar.info("💡 Groq Engine Llama-3.2 Vision model use karta hai jo fast aur free hai.")
+st.sidebar.info("💡 Groq Engine fast vision models use karta hai jo bilkul free hain.")
 
 if 'analyzed' not in st.session_state: st.session_state.analyzed = False
 if 'ai_data' not in st.session_state: st.session_state.ai_data = {}
@@ -48,9 +49,10 @@ if htf_file or ltf_file:
                         buffered = io.BytesIO()
                         main_img.save(buffered, format="JPEG")
                         base64_image = base64.b64encode(buffered.getvalue()).decode('utf-8')
+                        data_url = f"data:image/jpeg;base64,{base64_image}"
                         
                         prompt = """
-                        You are a top-tier institutional market analyst. Analyze this chart screenshot and respond STRICTLY in a valid JSON format. Do NOT wrap your response in markdown code blocks like ```json ... ```. Your output must strictly match this exact JSON schema:
+                        You are a top-tier institutional market analyst. Analyze this chart screenshot and respond STRICTLY in a valid JSON format. Do NOT wrap your response in markdown code blocks. Your output must strictly match this exact JSON schema:
                         {
                             "symbol": "Asset Name / Trading Pair",
                             "full_analysis": "Provide a clean 2-line global macro/technical market structure statement.",
@@ -62,37 +64,33 @@ if htf_file or ltf_file:
                         }
                         """
                         
-                        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-                        payload = {
-                            "model": "llama-3.2-11b-vision-preview",
-                            "messages": [
+                        # 🚨 FIXED: Using Official Groq SDK structure instead of raw requests post
+                        client = Groq(api_key=api_key)
+                        
+                        response = client.chat.completions.create(
+                            model="llama-3.2-11b-vision-preview",
+                            messages=[
                                 {
                                     "role": "user", 
                                     "content": [
                                         {"type": "text", "text": prompt}, 
-                                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
+                                        {"type": "image_url", "image_url": {"url": data_url}}
                                     ]
                                 }
                             ],
-                            "response_format": {"type": "json_object"}
-                        }
+                            response_format={"type": "json_object"}
+                        )
                         
-                        res = requests.post("https://groq.com", headers=headers, json=payload)
+                        clean_text = response.choices[0].message.content.strip()
                         
-                        # 🚨 ERROR FIX: Status check aur fallback string handling
-                        if res.status_code == 200:
-                            clean_text = res.json()['choices']['message']['content'].strip()
-                            
-                            # Safely stripping extra backticks if Groq adds them mistakenly
-                            if clean_text.startswith("```json"): clean_text = clean_text[7:]
-                            if clean_text.startswith("```"): clean_text = clean_text[3:]
-                            if clean_text.endswith("```"): clean_text = clean_text[:-3]
-                            
-                            st.session_state.ai_data = json.loads(clean_text.strip())
-                            st.session_state.analyzed = True
-                            st.rerun()
-                        else:
-                            st.error(f"API Error (Status {res.status_code}): {res.text}")
+                        # Safely stripping extra backticks if any
+                        if clean_text.startswith("```json"): clean_text = clean_text[7:]
+                        if clean_text.startswith("```"): clean_text = clean_text[3:]
+                        if clean_text.endswith("```"): clean_text = clean_text[:-3]
+                        
+                        st.session_state.ai_data = json.loads(clean_text.strip())
+                        st.session_state.analyzed = True
+                        st.rerun()
                             
                     except Exception as e: 
                         st.error(f"Error aaya: {str(e)}")
@@ -122,3 +120,4 @@ if st.session_state.analyzed:
         st.markdown(f"<div class='psych-card'><h4 style='color:#00FFCC;'>📊 Liquidity & Psychology</h4><p>{data.get('liquidity_psychology', 'N/A')}</p></div>", unsafe_allow_html=True)
     with m3:
         st.markdown(f"<div class='content-card' style='border-top: 4px solid #9900FF; min-height:535px;'><h4 style='color:#9900FF;'>📰 Other & News</h4><p>{data.get('other_news', 'N/A')}</p></div>", unsafe_allow_html=True)
+
