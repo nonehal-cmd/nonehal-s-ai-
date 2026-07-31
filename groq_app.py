@@ -66,9 +66,9 @@ if htf_file or ltf_file:
                         
                         client = Groq(api_key=api_key)
                         
-                        # 🚨 FIXED: Model updated to the active 'llama-3.2-90b-vision-preview'
+                        # 🚨 FIXED: Model updated to the active 'llama-3.2-11b-vision-preview'
                         response = client.chat.completions.create(
-                            model="llama-3.2-90b-vision-preview",
+                            model="llama-3.2-11b-vision-preview",
                             messages=[
                                 {
                                     "role": "user", 
