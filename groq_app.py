@@ -1,7 +1,7 @@
 import streamlit as st
 from PIL import Image
 import json, base64, io
-from groq import Groq  # Official SDK ka use jo error khatam karega
+from groq import Groq
 
 # Page Config aapke design layout ke mutabaq wide view me
 st.set_page_config(page_title="Groq AI Dashboard", layout="wide")
@@ -64,11 +64,11 @@ if htf_file or ltf_file:
                         }
                         """
                         
-                        # 🚨 FIXED: Using Official Groq SDK structure instead of raw requests post
                         client = Groq(api_key=api_key)
                         
+                        # 🚨 FIXED: Model updated to the active 'llama-3.2-90b-vision-preview'
                         response = client.chat.completions.create(
-                            model="llama-3.2-11b-vision-preview",
+                            model="llama-3.2-90b-vision-preview",
                             messages=[
                                 {
                                     "role": "user", 
@@ -81,9 +81,8 @@ if htf_file or ltf_file:
                             response_format={"type": "json_object"}
                         )
                         
-                        clean_text = response.choices[0].message.content.strip()
+                        clean_text = response.choices.message.content.strip()
                         
-                        # Safely stripping extra backticks if any
                         if clean_text.startswith("```json"): clean_text = clean_text[7:]
                         if clean_text.startswith("```"): clean_text = clean_text[3:]
                         if clean_text.endswith("```"): clean_text = clean_text[:-3]
@@ -120,4 +119,3 @@ if st.session_state.analyzed:
         st.markdown(f"<div class='psych-card'><h4 style='color:#00FFCC;'>📊 Liquidity & Psychology</h4><p>{data.get('liquidity_psychology', 'N/A')}</p></div>", unsafe_allow_html=True)
     with m3:
         st.markdown(f"<div class='content-card' style='border-top: 4px solid #9900FF; min-height:535px;'><h4 style='color:#9900FF;'>📰 Other & News</h4><p>{data.get('other_news', 'N/A')}</p></div>", unsafe_allow_html=True)
-
